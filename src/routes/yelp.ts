@@ -7,7 +7,6 @@ const router: Router = Router();
 const authorization = router.use((req: Request, res: Response, next: NextFunction) => {
   const YELP_API_KEY = process.env.YELP_API_KEY;
   req.headers.authorization = `Bearer ${YELP_API_KEY}`;
-  console.log('req.headers.authorization', req.headers.authorization);
   next();
 });
 
