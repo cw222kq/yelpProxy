@@ -22,11 +22,15 @@ export default {
     '@typescript-eslint': tseslint,
     prettier: pluginPrettier,
   },
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'prettier',
+  ],
   rules: {
-    ...pluginJs.configs.recommended.rules,
-    ...tseslint.configs.recommended.rules,
-    ...pluginPrettier.configs.recommended.rules,
+    'semi': ['error', 'always'],
+    'quotes': ['error', 'single'],
     'prettier/prettier': 'error',
-    '@typescript-eslint/no-var-requires': 'off',
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
   },
 };

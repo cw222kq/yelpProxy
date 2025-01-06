@@ -54,3 +54,8 @@ interface Business {
     limit?: number;
     offset?: number;
   }
+
+  export interface CustomError {
+    statusCode: number;
+    errorMessage: object;
+  }

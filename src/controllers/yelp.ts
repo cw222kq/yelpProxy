@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import axios, { RawAxiosRequestHeaders } from 'axios';
-import { YelpResponse, YelpSearchParams } from '../types';
+import { YelpResponse, YelpSearchParams, CustomError } from '../types';
 import winston from 'winston';
 
 const YELP_API_URL: string = 'https://api.yelp.com/v3';
@@ -20,14 +20,55 @@ const logger = winston.createLogger({
 });
 
 // Helper function to get error message from an error object
-const getErrorMessage = (error: unknown): string => {
+const getErrorDetails = (
+  error: unknown
+): { errorMessage: object; statusCode: number } => {
   if (axios.isAxiosError(error) && error.response) {
-    return error.response.data || error.message;
+    const errorData = error.response.data;
+    return {
+      errorMessage:
+        typeof errorData === 'object' && 'error' in errorData
+          ? { ...errorData.error }
+          : { message: errorData || error.message },
+      statusCode: error.response.status,
+    };
   }
   if (error instanceof Error) {
-    return error.message;
+    return {
+      errorMessage: { message: error.message },
+      statusCode: 500,
+    };
   }
-  return String(error);
+  return {
+    errorMessage: { message: String(error) },
+    statusCode: 500,
+  };
+};
+
+// Type guard to check if an error is a CustomError
+const isCustomError = (error: unknown): error is CustomError => {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    'errorMessage' in error
+  );
+};
+
+// Helper function to handle errors in controllers
+const handleControllerError = (
+  error: unknown,
+  res: Response,
+  action: string
+): void => {
+  if (isCustomError(error)) {
+    const { statusCode, errorMessage } = error;
+    logger.error(`Error fetching ${action}`, { statusCode, ...errorMessage });
+    res.status(statusCode).json({ error: errorMessage });
+  } else {
+    logger.error(`Unexpected error fetching ${action}`, { error });
+    res.status(500).json({ error: { message: 'Internal Server Error' } });
+  }
 };
 
 // Helper function to handle API requests and error handling
@@ -42,11 +83,13 @@ const fetchFromYelp = async (
     logger.info('Data fetched successfully from Yelp API', { url, params });
     return response.data;
   } catch (error) {
-    const statusCode: number =
-      axios.isAxiosError(error) && error.response ? error.response.status : 500;
-    const errorMessage: string = getErrorMessage(error);
-    logger.error('Error fetching data from Yelp API', { url, params, errorMessage })
-   throw { statusCode, errorMessage };
+    const { errorMessage, statusCode } = getErrorDetails(error);
+    logger.error('Error fetching data from Yelp API', {
+      url,
+      params,
+      ...errorMessage,
+    });
+    throw { statusCode, errorMessage };
   }
 };
 
@@ -57,7 +100,7 @@ export const searchRestaurants = async (
   res: Response
 ): Promise<void> => {
   const authorization = req.headers.authorization;
-  logger.info('Received request to search resturants') 
+  logger.info('Received request to search resturants');
   if (typeof authorization !== 'string') {
     logger.error('Authorization header is missing or invalid');
     res
@@ -68,7 +111,9 @@ export const searchRestaurants = async (
 
   const location = req.query.location;
   if (typeof location !== 'string') {
-    logger.error('Location query parameter is required and must be of type string')
+    logger.error(
+      'Location query parameter is required and must be of type string'
+    );
     res.status(400).json({
       error: 'Location query parameter is required and must be of type string',
     });
@@ -81,15 +126,10 @@ export const searchRestaurants = async (
       { ...req.query, term: 'restaurants' },
       { Authorization: authorization }
     );
-    logger.info('Successfully fetched restaurant data', { location })
+    logger.info('Successfully fetched restaurant data', { location });
     res.json(data);
   } catch (error) {
-    const { statusCode, errorMessage } = error as {
-      statusCode: number;
-      errorMessage: string;
-    };
-    logger.error('Error fetching restaurant data', { statusCode, errorMessage });
-    res.status(statusCode).json({ error: errorMessage });
+    handleControllerError(error, res, 'restaurant data');
   }
 };
 
@@ -113,14 +153,11 @@ export const getRestaurantById = async (
       {},
       { Authorization: authorization }
     );
-    logger.info('Sucessfully fetched restaurant data by ID', { id: req.params.id });
+    logger.info('Sucessfully fetched restaurant data by ID', {
+      id: req.params.id,
+    });
     res.json(data);
   } catch (error) {
-    const { statusCode, errorMessage } = error as {
-      statusCode: number;
-      errorMessage: string;
-    };
-    logger.error('Error fetching restaurant data by ID', { statusCode, errorMessage });
-    res.status(statusCode).json({ error: errorMessage });
+    handleControllerError(error, res, 'restaurant data by ID');
   }
 };
