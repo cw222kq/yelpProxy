@@ -1,23 +1,9 @@
 import { Request, Response } from 'express';
 import axios, { RawAxiosRequestHeaders } from 'axios';
 import { YelpResponse, YelpSearchParams, CustomError } from '../types';
-import winston from 'winston';
+import  logger  from '../utils/logger';
 
 const YELP_API_URL: string = 'https://api.yelp.com/v3';
-
-// Configure winston logger
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' }),
-  ],
-});
 
 // Helper function to get error message from an error object
 const getErrorDetails = (
@@ -63,7 +49,7 @@ const handleControllerError = (
 ): void => {
   if (isCustomError(error)) {
     const { statusCode, errorMessage } = error;
-    logger.error(`Error fetching ${action}`, { statusCode, ...errorMessage });
+    logger.error(`Error fetching ${action}`, { statusCode, error: errorMessage });
     res.status(statusCode).json({ error: errorMessage });
   } else {
     logger.error(`Unexpected error fetching ${action}`, { error });
@@ -87,7 +73,7 @@ const fetchFromYelp = async (
     logger.error('Error fetching data from Yelp API', {
       url,
       params,
-      ...errorMessage,
+      errorMessage,
     });
     throw { statusCode, errorMessage };
   }
