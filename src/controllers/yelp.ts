@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import axios, { RawAxiosRequestHeaders } from 'axios';
 import { YelpResponse, YelpSearchParams, CustomError } from '../types';
-import  logger  from '../utils/logger';
+import logger from '../utils/logger';
 
 const YELP_API_URL: string = 'https://api.yelp.com/v3';
 
@@ -49,7 +49,10 @@ const handleControllerError = (
 ): void => {
   if (isCustomError(error)) {
     const { statusCode, errorMessage } = error;
-    logger.error(`Error fetching ${action}`, { statusCode, error: errorMessage });
+    logger.error(`Error fetching ${action}`, {
+      statusCode,
+      error: errorMessage,
+    });
     res.status(statusCode).json({ error: errorMessage });
   } else {
     logger.error(`Unexpected error fetching ${action}`, { error });
@@ -85,9 +88,9 @@ export const searchRestaurants = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authorization = req.headers.authorization;
+  const authorization = req.headers.authorization || '';
   logger.info('Received request to search resturants');
-  if (typeof authorization !== 'string') {
+  if (typeof authorization !== 'string' || authorization === '') {
     logger.error('Authorization header is missing or invalid');
     res
       .status(400)
@@ -123,9 +126,9 @@ export const getRestaurantById = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authorization = req.headers.authorization;
+  const authorization = req.headers.authorization || '';
   logger.info('Received request to get resturant by ID');
-  if (typeof authorization !== 'string') {
+  if (typeof authorization !== 'string' || authorization === '') {
     logger.error('Authorization header is missing or invalid');
     res
       .status(400)
